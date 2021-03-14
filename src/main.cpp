@@ -1,41 +1,59 @@
 #include <Arduino.h>
 #include <FBesp32_platform.h>
-#include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
-AsyncWebServer webServer(80);
-DNSServer dnsServer;
+#include <WiFi.h>
+#include <ESPAsyncWebServer.h>
+#include <DNSServer.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+
+
 
 uint32_t chipId = getUniqueID();
-uint8_t led_server = 33;
-uint8_t led_wifi = 25;
+
+AsyncWebServer webServer(80);
+AsyncWebServer otaServer(3223);
+DNSServer dnsServer;
+
+const char* mqtt_server = "test.mosquitto.org";
+const uint16_t mqtt_port = 1883;
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+StaticJsonDocument<128> packet;
+char data[128];
 
 void setup() {
 	Serial.begin(9600);
-  pinMode(led_wifi,OUTPUT);
-  Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD)); Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
-  char APname[20] ="" ;
-  ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer,"ENV_Node" );
-  //ESPAsync_wifiManager.resetSettings();   //reset saved settings
-  ESPAsync_wifiManager.setAPStaticIPConfig(IPAddress(192,168,132,1), IPAddress(192,168,132,1), IPAddress(255,255,255,0));
-  ESPAsync_wifiManager.autoConnect("ENV_Node");
-  if (WiFi.status() == WL_CONNECTED) 
+  while (WiFi.status() != WL_CONNECTED)
   {
-    Serial.print(F("Connected. Local IP: ")); Serial.println(WiFi.localIP());
-    digitalWrite(led_wifi,HIGH);
+    Wificonnect(webServer,dnsServer);
+    delay(1000);
   }
-  else 
-  {
-    Serial.println(ESPAsync_wifiManager.getStatus(WiFi.status()));
-  }
+  MQTTconnect(mqtt_server,mqtt_port,&client);
+  Otastart(&otaServer);
 }
 
 void loop() {
-	Serial.printf("ESP32 Chip model = %s Rev %d\n", ESP.getChipModel(), ESP.getChipRevision());
-	Serial.printf("This chip has %d cores\n", ESP.getChipCores());
-  Serial.print("Chip ID: "); Serial.println(chipId);
-  Serial.print(F("Connected. Local IP: ")); Serial.println(WiFi.localIP());
-  
-	delay(3000);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    Wificonnect(webServer,dnsServer);
+    delay(1000);
+  }
 
+  if (!client.connected()) {
+    MQTTconnect(mqtt_server,mqtt_port,&client);
+    delay(100);
+  }
+
+  client.loop();
+
+  packet["IP"] =  WiFi.localIP().toString();
+  packet["UID"] = chipId;
+  packet["Device"] =  ESP.getChipModel();
+  serializeJson( packet,  &data,  100);
+  client.publish("outtopic",data);
+  delay(1000);
+  Serial.println(data);
 
 }
 
