@@ -11,17 +11,20 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println();
 }  
 
-void MQTTconnect(const char* mqtt_server,const uint16_t mqtt_port,PubSubClient* client)
+void MQTTconnect(const char* mqtt_server,const uint16_t mqtt_port,PubSubClient* client,char* chipId_s)
 {
     client -> setServer(mqtt_server, mqtt_port);
     client -> setCallback(callback);
     while (!client -> connected()) {
         Serial.println("Connecting to MQTT...");
-        if (client -> connect("arduinoClient")) {
-            Serial.println("connected");
+        if (client -> connect(chipId_s)) {
+            Serial.println(client -> state());
                 client -> publish("outTopic","hello world");
+                delay(100);
+            Serial.println(client -> state());
                 client -> subscribe("/kanishg");
-                delay(500);
+            Serial.println(client -> state());
+                delay(400);
         } else {
             Serial.print("failed with state ");
             Serial.print(client -> state());
@@ -31,3 +34,21 @@ void MQTTconnect(const char* mqtt_server,const uint16_t mqtt_port,PubSubClient* 
 }
 
 
+
+void MQTTreconnect(PubSubClient* client,char* chipId_s)
+{
+    while (!client -> connected()) {
+        Serial.println("Reconnecting to MQTT...");
+        if (client -> connect(chipId_s)) {
+            Serial.println("reconnected");
+                client -> publish("outTopic","hello world");
+                delay(100);
+                client -> subscribe("/kanishg");
+                delay(400);
+        } else {
+            Serial.print("failed with state ");
+            Serial.print(client -> state());
+            delay(2000);
+        }
+    }
+}

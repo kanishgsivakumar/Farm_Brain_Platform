@@ -1,9 +1,12 @@
 #include <Arduino.h>
+#define _ESPASYNC_WIFIMGR_LOGLEVEL_  4
 #include <ESPAsync_WiFiManager.h>              //https://github.com/khoih-prog/ESPAsync_WiFiManager
 
 
-bool Wificonnect(AsyncWebServer webServer, DNSServer dnsServer)
+bool Wificonnect()
 {
+    AsyncWebServer webServer(80);
+    DNSServer dnsServer;
     Serial.print("\nStarting Async_AutoConnect_ESP32_minimal on " + String(ARDUINO_BOARD)); Serial.println(ESP_ASYNC_WIFIMANAGER_VERSION);
     ESPAsync_WiFiManager ESPAsync_wifiManager(&webServer, &dnsServer,"Farm-Brain" );
     //ESPAsync_wifiManager.resetSettings();   //reset saved settings
